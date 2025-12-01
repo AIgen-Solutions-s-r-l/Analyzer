@@ -1,5 +1,6 @@
 using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
 
@@ -13,6 +14,7 @@ public class Program
             .MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .WriteTo.Console(
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
@@ -20,9 +22,67 @@ public class Program
 
         try
         {
-            Log.Information("Starting Blockchain Analyzer...");
+            Log.Information("Starting Blockchain Analyzer API...");
 
-            CreateHostBuilder(args).Build().Run();
+            var builder = WebApplication.CreateBuilder(args);
+
+            // Add Serilog
+            builder.Host.UseSerilog();
+
+            // Add Application layer (MediatR, FluentValidation, Behaviors)
+            builder.Services.AddApplication();
+
+            // Add Infrastructure layer (EF Core, Repositories, Blockchain, Background Services)
+            builder.Services.AddInfrastructure(builder.Configuration);
+
+            // Add Controllers
+            builder.Services.AddControllers();
+
+            // Add Swagger/OpenAPI
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "Blockchain Analyzer API",
+                    Version = "v1",
+                    Description = "API for blockchain analysis - pool and token tracking",
+                    Contact = new OpenApiContact
+                    {
+                        Name = "AIgen Solutions",
+                        Email = "info@aigen.solutions"
+                    }
+                });
+
+                // Include XML comments for better documentation
+                var xmlFile = $"{typeof(Program).Assembly.GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                if (File.Exists(xmlPath))
+                {
+                    options.IncludeXmlComments(xmlPath);
+                }
+            });
+
+            var app = builder.Build();
+
+            // Configure HTTP request pipeline
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(options =>
+                {
+                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Blockchain Analyzer API v1");
+                    options.RoutePrefix = string.Empty; // Swagger at root
+                });
+            }
+
+            // Health checks endpoint
+            app.MapHealthChecks("/health");
+
+            // Map controllers
+            app.MapControllers();
+
+            app.Run();
         }
         catch (Exception ex)
         {
@@ -34,18 +94,4 @@ public class Program
             Log.CloseAndFlush();
         }
     }
-
-    public static IHostBuilder CreateHostBuilder(string[] args) =>
-        Host.CreateDefaultBuilder(args)
-            .UseSerilog()
-            .ConfigureServices((hostContext, services) =>
-            {
-                var configuration = hostContext.Configuration;
-
-                // Add Application layer (MediatR, FluentValidation, Behaviors)
-                services.AddApplication();
-
-                // Add Infrastructure layer (EF Core, Repositories, Blockchain, Background Services)
-                services.AddInfrastructure(configuration);
-            });
 }
