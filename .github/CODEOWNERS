@@ -1,0 +1,12 @@
+# Default owners for everything in the repo
+* @blackms
+
+# Infrastructure code
+/monitoring/ @blackms
+/.github/ @blackms
+/Dockerfile @blackms
+/docker-compose*.yml @blackms
+
+# Source code
+/src/ @blackms
+/tests/ @blackms

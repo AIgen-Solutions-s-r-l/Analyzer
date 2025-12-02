@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # NuGet dependencies
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "nuget"
+    groups:
+      microsoft:
+        patterns:
+          - "Microsoft.*"
+      opentelemetry:
+        patterns:
+          - "OpenTelemetry*"
+      serilog:
+        patterns:
+          - "Serilog*"
+      testing:
+        patterns:
+          - "xunit*"
+          - "FluentAssertions*"
+          - "Moq*"
+          - "NSubstitute*"
+          - "NetArchTest*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
