@@ -5,6 +5,7 @@ using AnalyzerCore.Application.Pools.Queries.GetPoolByAddress;
 using AnalyzerCore.Application.Pools.Queries.GetPoolsByToken;
 using AnalyzerCore.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AnalyzerCore.Api.Controllers;
@@ -12,6 +13,7 @@ namespace AnalyzerCore.Api.Controllers;
 /// <summary>
 /// API endpoints for managing liquidity pools.
 /// </summary>
+[Authorize(Policy = "RequireReadOnly")]
 public class PoolsController : ApiControllerBase
 {
     private readonly ISender _sender;
@@ -31,6 +33,7 @@ public class PoolsController : ApiControllerBase
     /// <response code="400">Invalid request.</response>
     /// <response code="409">Pool already exists.</response>
     [HttpPost]
+    [Authorize(Policy = "RequireUser")]
     [ProducesResponseType(typeof(PoolResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -117,6 +120,7 @@ public class PoolsController : ApiControllerBase
     /// <response code="400">Invalid request.</response>
     /// <response code="404">Pool not found.</response>
     [HttpPut("{address}/reserves")]
+    [Authorize(Policy = "RequireUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

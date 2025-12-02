@@ -4,6 +4,7 @@ using AnalyzerCore.Application.Tokens.Queries.GetTokenByAddress;
 using AnalyzerCore.Application.Tokens.Queries.GetTokensByChainId;
 using AnalyzerCore.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AnalyzerCore.Api.Controllers;
@@ -11,6 +12,7 @@ namespace AnalyzerCore.Api.Controllers;
 /// <summary>
 /// API endpoints for managing tokens.
 /// </summary>
+[Authorize(Policy = "RequireReadOnly")]
 public class TokensController : ApiControllerBase
 {
     private readonly ISender _sender;
@@ -30,6 +32,7 @@ public class TokensController : ApiControllerBase
     /// <response code="400">Invalid request.</response>
     /// <response code="409">Token already exists.</response>
     [HttpPost]
+    [Authorize(Policy = "RequireUser")]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]

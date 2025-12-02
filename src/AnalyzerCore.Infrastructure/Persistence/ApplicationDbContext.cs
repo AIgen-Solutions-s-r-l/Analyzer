@@ -28,6 +28,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
     public DbSet<Token> Tokens => Set<Token>();
     public DbSet<Pool> Pools => Set<Pool>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<IdempotentRequest> IdempotentRequests => Set<IdempotentRequest>();
 
@@ -99,6 +100,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         // Apply IdempotentRequest configuration
         modelBuilder.ApplyConfiguration(new IdempotentRequestConfiguration());
+
+        // Apply User configuration
+        modelBuilder.ApplyConfiguration(new UserConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

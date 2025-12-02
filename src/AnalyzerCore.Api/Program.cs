@@ -1,6 +1,7 @@
 using AnalyzerCore.Api.Middleware;
 using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
+using AnalyzerCore.Infrastructure.Authentication;
 using AnalyzerCore.Infrastructure.Telemetry;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -37,6 +38,9 @@ public class Program
             // Add Infrastructure layer (EF Core, Repositories, Blockchain, Background Services)
             builder.Services.AddInfrastructure(builder.Configuration);
 
+            // Add JWT Authentication
+            builder.Services.AddJwtAuthentication(builder.Configuration);
+
             // Add Telemetry (OpenTelemetry + Prometheus metrics)
             builder.Services.AddTelemetry(builder.Configuration);
 
@@ -56,6 +60,32 @@ public class Program
                     {
                         Name = "AIgen Solutions",
                         Email = "info@aigen.solutions"
+                    }
+                });
+
+                // Add JWT Authentication to Swagger
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Enter your JWT token"
+                });
+
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
                     }
                 });
 
@@ -83,6 +113,10 @@ public class Program
                     options.RoutePrefix = string.Empty; // Swagger at root
                 });
             }
+
+            // Authentication & Authorization
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             // Health checks endpoint
             app.MapHealthChecks("/health");
