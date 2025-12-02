@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analyzercore-config
+  namespace: analyzercore
+  labels:
+    app.kubernetes.io/name: analyzercore
+    app.kubernetes.io/component: api
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ChainConfig__ChainId: "1"
+  ChainConfig__Name: "Ethereum"
+  ChainConfig__RpcUrl: "rpc.ankr.com/eth"
+  ChainConfig__RpcPort: "443"
+  ChainConfig__BlockTime: "15"
+  ChainConfig__ConfirmationBlocks: "12"
+  Monitoring__PollingInterval: "120000"
+  Monitoring__BlocksToProcess: "5"
+  Monitoring__BatchSize: "1"
+  Telemetry__Enabled: "true"
+  Telemetry__ServiceName: "AnalyzerCore"
+  Telemetry__JaegerEnabled: "true"
+  Telemetry__JaegerAgentHost: "jaeger-agent.monitoring.svc.cluster.local"
+  Telemetry__JaegerAgentPort: "6831"
+  Logging__SeqEnabled: "true"
+  Logging__SeqServerUrl: "http://seq.monitoring.svc.cluster.local:80"
+  Logging__MinimumLevel: "Information"

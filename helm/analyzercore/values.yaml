@@ -1,0 +1,148 @@
+# Default values for analyzercore
+# This is a YAML-formatted file.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/aigen-solutions-s-r-l/analyzer
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.analyzercore.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: analyzercore-tls
+  #    hosts:
+  #      - api.analyzercore.local
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: analyzercore
+          topologyKey: kubernetes.io/hostname
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Persistence
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+
+# Application configuration
+config:
+  aspnetcore:
+    environment: Production
+  chain:
+    chainId: "1"
+    name: "Ethereum"
+    rpcUrl: "rpc.ankr.com/eth"
+    rpcPort: "443"
+    blockTime: "15"
+    confirmationBlocks: "12"
+  monitoring:
+    pollingInterval: "120000"
+    blocksToProcess: "5"
+    batchSize: "1"
+  telemetry:
+    enabled: true
+    serviceName: "AnalyzerCore"
+    jaegerEnabled: true
+    jaegerAgentHost: "jaeger-agent.monitoring.svc.cluster.local"
+    jaegerAgentPort: "6831"
+  logging:
+    seqEnabled: true
+    seqServerUrl: "http://seq.monitoring.svc.cluster.local:80"
+    minimumLevel: "Information"
+
+# Secrets configuration
+secrets:
+  create: true
+  jwt:
+    # Override these in your values file or via --set
+    secret: "your-super-secret-key-that-is-at-least-32-characters-long"
+    issuer: "AnalyzerCore"
+    audience: "AnalyzerCore"
+
+# Probes configuration
+probes:
+  liveness:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3

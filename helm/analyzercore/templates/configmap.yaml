@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "analyzercore.fullname" . }}-config
+  labels:
+    {{- include "analyzercore.labels" . | nindent 4 }}
+data:
+  ASPNETCORE_ENVIRONMENT: {{ .Values.config.aspnetcore.environment | quote }}
+  ChainConfig__ChainId: {{ .Values.config.chain.chainId | quote }}
+  ChainConfig__Name: {{ .Values.config.chain.name | quote }}
+  ChainConfig__RpcUrl: {{ .Values.config.chain.rpcUrl | quote }}
+  ChainConfig__RpcPort: {{ .Values.config.chain.rpcPort | quote }}
+  ChainConfig__BlockTime: {{ .Values.config.chain.blockTime | quote }}
+  ChainConfig__ConfirmationBlocks: {{ .Values.config.chain.confirmationBlocks | quote }}
+  Monitoring__PollingInterval: {{ .Values.config.monitoring.pollingInterval | quote }}
+  Monitoring__BlocksToProcess: {{ .Values.config.monitoring.blocksToProcess | quote }}
+  Monitoring__BatchSize: {{ .Values.config.monitoring.batchSize | quote }}
+  Telemetry__Enabled: {{ .Values.config.telemetry.enabled | quote }}
+  Telemetry__ServiceName: {{ .Values.config.telemetry.serviceName | quote }}
+  Telemetry__JaegerEnabled: {{ .Values.config.telemetry.jaegerEnabled | quote }}
+  Telemetry__JaegerAgentHost: {{ .Values.config.telemetry.jaegerAgentHost | quote }}
+  Telemetry__JaegerAgentPort: {{ .Values.config.telemetry.jaegerAgentPort | quote }}
+  Logging__SeqEnabled: {{ .Values.config.logging.seqEnabled | quote }}
+  Logging__SeqServerUrl: {{ .Values.config.logging.seqServerUrl | quote }}
+  Logging__MinimumLevel: {{ .Values.config.logging.minimumLevel | quote }}

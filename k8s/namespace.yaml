@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: analyzercore
+  labels:
+    app.kubernetes.io/name: analyzercore
+    app.kubernetes.io/part-of: analyzercore

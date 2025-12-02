@@ -1,0 +1,16 @@
+apiVersion: v2
+name: analyzercore
+description: A Helm chart for AnalyzerCore blockchain analysis API
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - blockchain
+  - analyzer
+  - defi
+  - ethereum
+maintainers:
+  - name: AIgen Solutions
+    email: info@aigen.solutions
+sources:
+  - https://github.com/AIgen-Solutions-s-r-l/Analyzer
