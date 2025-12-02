@@ -2,13 +2,13 @@ using AnalyzerCore.Api.Middleware;
 using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
 using AnalyzerCore.Infrastructure.Authentication;
+using AnalyzerCore.Infrastructure.Logging;
 using AnalyzerCore.Infrastructure.Telemetry;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using Serilog.Events;
 
 namespace AnalyzerCore.Api;
 
@@ -16,15 +16,16 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-            .Enrich.FromLogContext()
-            .WriteTo.Console(
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
-            .CreateLogger();
+        // Build configuration for bootstrap logger
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        // Create bootstrap logger with Seq support
+        Log.Logger = SerilogExtensions.CreateBootstrapLogger(configuration).CreateLogger();
 
         try
         {
@@ -32,8 +33,11 @@ public class Program
 
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add Serilog
-            builder.Host.UseSerilog();
+            // Add Serilog with Seq integration
+            builder.Host.UseSerilogLogging(builder.Configuration);
+
+            // Add Serilog services (request context enricher)
+            builder.Services.AddSerilogServices(builder.Configuration);
 
             // Add Application layer (MediatR, FluentValidation, Behaviors)
             builder.Services.AddApplication();
@@ -144,10 +148,13 @@ public class Program
             // 4. Correlation ID (for request tracing)
             app.UseCorrelationId();
 
-            // 5. Request logging with sensitive data masking
+            // 5. Request logging with Serilog (structured logging)
+            app.UseSerilogRequestLogging();
+
+            // 6. Custom request logging with sensitive data masking
             app.UseRequestLogging();
 
-            // 6. CORS
+            // 7. CORS
             app.UseCors("AllowConfigured");
 
             if (app.Environment.IsDevelopment())
