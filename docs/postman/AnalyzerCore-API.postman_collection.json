@@ -1,0 +1,554 @@
+{
+	"info": {
+		"_postman_id": "analyzer-core-api-v1",
+		"name": "AnalyzerCore API",
+		"description": "# AnalyzerCore API Collection\n\nComprehensive API collection for the Blockchain Analyzer platform.\n\n## Features\n- Token price discovery and oracle functionality\n- Arbitrage opportunity detection\n- Liquidity analytics and metrics\n- Real-time WebSocket streaming\n\n## Authentication\nAll endpoints require API key authentication. Set the `api_key` variable in your environment.\n\n## Base URL\nDefault: `http://localhost:5000/api/v1`\n\n## Rate Limits\n- Standard: 100 requests/minute\n- Premium: 1000 requests/minute",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "value",
+				"value": "{{api_key}}",
+				"type": "string"
+			},
+			{
+				"key": "key",
+				"value": "X-API-Key",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000/api/v1"
+		},
+		{
+			"key": "weth_address",
+			"value": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+		},
+		{
+			"key": "usdt_address",
+			"value": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+		},
+		{
+			"key": "usdc_address",
+			"value": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+		},
+		{
+			"key": "sample_pool",
+			"value": "0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852"
+		}
+	],
+	"item": [
+		{
+			"name": "Prices",
+			"description": "Token price discovery and oracle functionality",
+			"item": [
+				{
+					"name": "Get Token Price",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/prices/{{weth_address}}?quoteCurrency=USDT",
+							"host": ["{{base_url}}"],
+							"path": ["prices", "{{weth_address}}"],
+							"query": [
+								{
+									"key": "quoteCurrency",
+									"value": "USDT",
+									"description": "Quote currency: ETH, USDC, USDT, DAI, USD"
+								}
+							]
+						},
+						"description": "Get the current spot price of a token from the pool with highest liquidity."
+					},
+					"response": []
+				},
+				{
+					"name": "Get USD Price",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/prices/{{weth_address}}/usd",
+							"host": ["{{base_url}}"],
+							"path": ["prices", "{{weth_address}}", "usd"]
+						},
+						"description": "Get token price converted to USD using stablecoin pool routing."
+					},
+					"response": []
+				},
+				{
+					"name": "Get TWAP",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/prices/{{weth_address}}/twap?quoteCurrency=USDT&periodMinutes=60",
+							"host": ["{{base_url}}"],
+							"path": ["prices", "{{weth_address}}", "twap"],
+							"query": [
+								{
+									"key": "quoteCurrency",
+									"value": "USDT"
+								},
+								{
+									"key": "periodMinutes",
+									"value": "60",
+									"description": "TWAP period in minutes (default: 60)"
+								}
+							]
+						},
+						"description": "Calculate Time-Weighted Average Price for manipulation resistance."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Price History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/prices/{{weth_address}}/history?quoteCurrency=USDT&limit=100",
+							"host": ["{{base_url}}"],
+							"path": ["prices", "{{weth_address}}", "history"],
+							"query": [
+								{
+									"key": "quoteCurrency",
+									"value": "USDT"
+								},
+								{
+									"key": "from",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "to",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Max records (default: 100, max: 1000)"
+								}
+							]
+						},
+						"description": "Query historical price data for charting and analysis."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Quote Currencies",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/prices/quote-currencies",
+							"host": ["{{base_url}}"],
+							"path": ["prices", "quote-currencies"]
+						},
+						"description": "Get list of supported quote currencies. No authentication required."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Arbitrage",
+			"description": "Arbitrage detection and analysis",
+			"item": [
+				{
+					"name": "Scan All Pools",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/arbitrage/scan?minProfitUsd=10",
+							"host": ["{{base_url}}"],
+							"path": ["arbitrage", "scan"],
+							"query": [
+								{
+									"key": "minProfitUsd",
+									"value": "10",
+									"description": "Minimum profit threshold in USD (default: 10)"
+								}
+							]
+						},
+						"description": "Scan all monitored pools for arbitrage opportunities."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Token Arbitrage",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/arbitrage/token/{{weth_address}}",
+							"host": ["{{base_url}}"],
+							"path": ["arbitrage", "token", "{{weth_address}}"]
+						},
+						"description": "Find arbitrage opportunities for a specific token."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Triangular Arbitrage",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/arbitrage/triangular?baseToken={{weth_address}}",
+							"host": ["{{base_url}}"],
+							"path": ["arbitrage", "triangular"],
+							"query": [
+								{
+									"key": "baseToken",
+									"value": "{{weth_address}}",
+									"description": "Base token for triangular path (default: WETH)"
+								}
+							]
+						},
+						"description": "Find triangular arbitrage opportunities (A→B→C→A)."
+					},
+					"response": []
+				},
+				{
+					"name": "Calculate Optimal Amount",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/arbitrage/calculate?buyPool={{sample_pool}}&sellPool={{sample_pool}}&tokenAddress={{weth_address}}",
+							"host": ["{{base_url}}"],
+							"path": ["arbitrage", "calculate"],
+							"query": [
+								{
+									"key": "buyPool",
+									"value": "{{sample_pool}}",
+									"description": "Pool address to buy from"
+								},
+								{
+									"key": "sellPool",
+									"value": "{{sample_pool}}",
+									"description": "Pool address to sell to"
+								},
+								{
+									"key": "tokenAddress",
+									"value": "{{weth_address}}",
+									"description": "Token being arbitraged"
+								}
+							]
+						},
+						"description": "Calculate optimal arbitrage input amount for maximum profit."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Liquidity",
+			"description": "Liquidity analytics and metrics",
+			"item": [
+				{
+					"name": "Get Pool Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/liquidity/pools/{{sample_pool}}",
+							"host": ["{{base_url}}"],
+							"path": ["liquidity", "pools", "{{sample_pool}}"]
+						},
+						"description": "Get comprehensive liquidity metrics for a specific pool (TVL, volume, fees, APR)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Token Liquidity",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/liquidity/tokens/{{weth_address}}",
+							"host": ["{{base_url}}"],
+							"path": ["liquidity", "tokens", "{{weth_address}}"]
+						},
+						"description": "Get aggregated liquidity summary for a token across all pools."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Top Pools",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/liquidity/top-pools?limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["liquidity", "top-pools"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Max pools to return (default: 10, max: 100)"
+								}
+							]
+						},
+						"description": "Get top pools ranked by Total Value Locked (TVL)."
+					},
+					"response": []
+				},
+				{
+					"name": "Calculate Impermanent Loss",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"poolAddress\": \"{{sample_pool}}\",\n    \"entryPriceRatio\": 1850.00,\n    \"initialInvestmentUsd\": 10000.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/liquidity/impermanent-loss",
+							"host": ["{{base_url}}"],
+							"path": ["liquidity", "impermanent-loss"]
+						},
+						"description": "Calculate impermanent loss for an LP position, comparing LP vs HODL returns."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Liquidity Concentration",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/liquidity/concentration/{{weth_address}}",
+							"host": ["{{base_url}}"],
+							"path": ["liquidity", "concentration", "{{weth_address}}"]
+						},
+						"description": "Analyze liquidity distribution and concentration risk for a token."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tokens",
+			"description": "Token information and management",
+			"item": [
+				{
+					"name": "Get Token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tokens/{{weth_address}}",
+							"host": ["{{base_url}}"],
+							"path": ["tokens", "{{weth_address}}"]
+						},
+						"description": "Get token information by address."
+					},
+					"response": []
+				},
+				{
+					"name": "Search Tokens",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tokens?symbol=WETH&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["tokens"],
+							"query": [
+								{
+									"key": "symbol",
+									"value": "WETH",
+									"description": "Token symbol to search for"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Search tokens by symbol."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Pools",
+			"description": "Pool information and discovery",
+			"item": [
+				{
+					"name": "Get Pool",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/pools/{{sample_pool}}",
+							"host": ["{{base_url}}"],
+							"path": ["pools", "{{sample_pool}}"]
+						},
+						"description": "Get pool information by address."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pools by Token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/pools?tokenAddress={{weth_address}}&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["pools"],
+							"query": [
+								{
+									"key": "tokenAddress",
+									"value": "{{weth_address}}",
+									"description": "Filter pools containing this token"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get pools containing a specific token."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Authentication",
+			"description": "API key management",
+			"item": [
+				{
+					"name": "Create API Key",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"My API Key\",\n    \"permissions\": [\"read\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api-keys",
+							"host": ["{{base_url}}"],
+							"path": ["api-keys"]
+						},
+						"description": "Create a new API key. Requires JWT authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "List API Keys",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api-keys",
+							"host": ["{{base_url}}"],
+							"path": ["api-keys"]
+						},
+						"description": "List all API keys for the authenticated user."
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke API Key",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api-keys/:keyId",
+							"host": ["{{base_url}}"],
+							"path": ["api-keys", ":keyId"],
+							"variable": [
+								{
+									"key": "keyId",
+									"value": "",
+									"description": "API key ID to revoke"
+								}
+							]
+						},
+						"description": "Revoke an API key."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [""]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"pm.test(\"Status code is successful\", function () {",
+					"    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+					"});"
+				]
+			}
+		}
+	]
+}
