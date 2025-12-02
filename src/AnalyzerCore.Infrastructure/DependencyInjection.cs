@@ -249,6 +249,10 @@ public static class DependencyInjection
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CachedPoolRepository>>());
         });
 
+        // Swap Event Repository
+        services.AddScoped<SwapEventRepository>();
+        services.AddScoped<ISwapEventRepository>(sp => sp.GetRequiredService<SwapEventRepository>());
+
         // Background Services
         services.AddHostedService<BlockchainMonitorService>();
 

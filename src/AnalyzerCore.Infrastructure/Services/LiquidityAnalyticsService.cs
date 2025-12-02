@@ -7,6 +7,9 @@ using AnalyzerCore.Infrastructure.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+// Volume calculation constants
+using VolumeWindow = System.TimeSpan;
+
 namespace AnalyzerCore.Infrastructure.Services;
 
 /// <summary>
@@ -16,6 +19,7 @@ public sealed class LiquidityAnalyticsService : ILiquidityAnalyticsService
 {
     private readonly IPoolRepository _poolRepository;
     private readonly ITokenRepository _tokenRepository;
+    private readonly ISwapEventRepository _swapEventRepository;
     private readonly IPriceService _priceService;
     private readonly ICacheService _cacheService;
     private readonly ILogger<LiquidityAnalyticsService> _logger;
@@ -24,9 +28,13 @@ public sealed class LiquidityAnalyticsService : ILiquidityAnalyticsService
     // DEX fee (0.3% for Uniswap V2 style)
     private const decimal DefaultFeePercent = 0.3m;
 
+    // Volume calculation window
+    private static readonly VolumeWindow Volume24hWindow = TimeSpan.FromHours(24);
+
     public LiquidityAnalyticsService(
         IPoolRepository poolRepository,
         ITokenRepository tokenRepository,
+        ISwapEventRepository swapEventRepository,
         IPriceService priceService,
         ICacheService cacheService,
         IOptions<BlockchainOptions> blockchainOptions,
@@ -34,6 +42,7 @@ public sealed class LiquidityAnalyticsService : ILiquidityAnalyticsService
     {
         _poolRepository = poolRepository;
         _tokenRepository = tokenRepository;
+        _swapEventRepository = swapEventRepository;
         _priceService = priceService;
         _cacheService = cacheService;
         _chainId = blockchainOptions.Value.ChainId;
@@ -76,9 +85,13 @@ public sealed class LiquidityAnalyticsService : ILiquidityAnalyticsService
         var reserve0Usd = pool.Reserve0 * price0Usd;
         var reserve1Usd = pool.Reserve1 * price1Usd;
 
-        // Note: Volume calculation would require swap event tracking
-        // Using placeholder for now
-        var volume24hUsd = 0m;
+        // Calculate 24h volume from swap events
+        var now = DateTime.UtcNow;
+        var volume24hUsd = await _swapEventRepository.GetPoolVolumeAsync(
+            poolAddress,
+            now - Volume24hWindow,
+            now,
+            cancellationToken);
 
         var metrics = LiquidityMetrics.Create(
             pool.Address,
@@ -181,7 +194,7 @@ public sealed class LiquidityAnalyticsService : ILiquidityAnalyticsService
             PoolCount = poolList.Count,
             TopPools = sortedPools,
             AverageLiquidityPerPool = poolList.Count > 0 ? totalLiquidityUsd / poolList.Count : 0,
-            TotalVolume24hUsd = 0, // Would need swap event tracking
+            TotalVolume24hUsd = await GetTokenVolume24hAsync(tokenAddress, cancellationToken),
             Timestamp = DateTime.UtcNow
         };
 
@@ -343,5 +356,33 @@ public sealed class LiquidityAnalyticsService : ILiquidityAnalyticsService
             ConcentrationLevel = concentrationLevel,
             PoolCount = summary.PoolCount
         });
+    }
+
+    /// <summary>
+    /// Gets the 24h trading volume for a token across all pools.
+    /// </summary>
+    private async Task<decimal> GetTokenVolume24hAsync(
+        string tokenAddress,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = $"volume:token:{tokenAddress}:24h";
+        var cached = await _cacheService.GetAsync<decimal?>(cacheKey);
+        if (cached.HasValue)
+        {
+            return cached.Value;
+        }
+
+        var now = DateTime.UtcNow;
+        var volume = await _swapEventRepository.GetTokenVolumeAsync(
+            tokenAddress,
+            _chainId,
+            now - Volume24hWindow,
+            now,
+            cancellationToken);
+
+        // Cache for 5 minutes
+        await _cacheService.SetAsync(cacheKey, volume, TimeSpan.FromMinutes(5));
+
+        return volume;
     }
 }

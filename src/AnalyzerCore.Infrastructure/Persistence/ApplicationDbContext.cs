@@ -31,6 +31,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<User> Users => Set<User>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<PriceHistory> PriceHistories => Set<PriceHistory>();
+    public DbSet<SwapEvent> SwapEvents => Set<SwapEvent>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<IdempotentRequest> IdempotentRequests => Set<IdempotentRequest>();
 
@@ -132,6 +133,44 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                 .HasPrecision(36, 18);
 
             entity.Property(e => e.Liquidity)
+                .HasPrecision(36, 18);
+        });
+
+        // SwapEvent configuration
+        modelBuilder.Entity<SwapEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.TransactionHash, e.LogIndex }).IsUnique();
+            entity.HasIndex(e => new { e.PoolAddress, e.Timestamp });
+            entity.HasIndex(e => e.Timestamp);
+
+            entity.Property(e => e.PoolAddress)
+                .IsRequired()
+                .HasMaxLength(42);
+
+            entity.Property(e => e.ChainId)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(e => e.TransactionHash)
+                .IsRequired()
+                .HasMaxLength(66);
+
+            entity.Property(e => e.Sender)
+                .IsRequired()
+                .HasMaxLength(42);
+
+            entity.Property(e => e.Recipient)
+                .IsRequired()
+                .HasMaxLength(42);
+
+            entity.Property(e => e.Amount0)
+                .HasPrecision(36, 18);
+
+            entity.Property(e => e.Amount1)
+                .HasPrecision(36, 18);
+
+            entity.Property(e => e.AmountUsd)
                 .HasPrecision(36, 18);
         });
 
