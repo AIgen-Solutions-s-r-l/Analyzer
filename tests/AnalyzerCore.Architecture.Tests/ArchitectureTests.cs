@@ -319,4 +319,231 @@ public class ArchitectureTests
     }
 
     #endregion
+
+    #region API Layer Tests
+
+    [Fact]
+    public void Controllers_Should_Be_Named_With_Controller_Suffix()
+    {
+        // Act
+        var result = Types.InAssembly(ApiAssembly)
+            .That()
+            .Inherit(typeof(Microsoft.AspNetCore.Mvc.ControllerBase))
+            .Should()
+            .HaveNameEndingWith("Controller")
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "All controllers should be named with 'Controller' suffix. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    [Fact]
+    public void Controllers_Should_Have_ApiController_Attribute()
+    {
+        // Arrange
+        var controllerTypes = Types.InAssembly(ApiAssembly)
+            .That()
+            .Inherit(typeof(Microsoft.AspNetCore.Mvc.ControllerBase))
+            .And()
+            .AreNotAbstract()
+            .GetTypes();
+
+        // Assert
+        foreach (var controllerType in controllerTypes)
+        {
+            var hasAttribute = controllerType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.ApiControllerAttribute), true).Any();
+            hasAttribute.Should().BeTrue(
+                because: $"Controller {controllerType.Name} should have [ApiController] attribute");
+        }
+    }
+
+    #endregion
+
+    #region DDD Pattern Tests
+
+    [Fact]
+    public void Aggregate_Roots_Should_Inherit_From_AggregateRoot()
+    {
+        // Act
+        var result = Types.InAssembly(DomainAssembly)
+            .That()
+            .ResideInNamespace("AnalyzerCore.Domain.Entities")
+            .And()
+            .AreClasses()
+            .And()
+            .AreNotAbstract()
+            .Should()
+            .Inherit(typeof(Domain.Abstractions.AggregateRoot<>))
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "Domain entities should inherit from AggregateRoot<T>. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    [Fact]
+    public void Domain_Events_Should_Reside_In_Events_Namespace()
+    {
+        // Act
+        var result = Types.InAssembly(DomainAssembly)
+            .That()
+            .ImplementInterface(typeof(Domain.Abstractions.IDomainEvent))
+            .And()
+            .AreNotAbstract()
+            .Should()
+            .ResideInNamespace("AnalyzerCore.Domain.Events")
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "Domain events should reside in the Events namespace. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    [Fact]
+    public void Domain_Errors_Should_Be_Static_Classes()
+    {
+        // Act
+        var result = Types.InAssembly(DomainAssembly)
+            .That()
+            .ResideInNamespace("AnalyzerCore.Domain.Errors")
+            .And()
+            .AreClasses()
+            .Should()
+            .BeStatic()
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "Domain error classes should be static. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    #endregion
+
+    #region Behavior Tests
+
+    [Fact]
+    public void Behaviors_Should_Implement_IPipelineBehavior()
+    {
+        // Act
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .HaveNameEndingWith("Behavior")
+            .And()
+            .AreClasses()
+            .Should()
+            .ImplementInterface(typeof(MediatR.IPipelineBehavior<,>))
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "All behaviors should implement IPipelineBehavior<,>. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    [Fact]
+    public void Behaviors_Should_Be_Sealed()
+    {
+        // Act
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .HaveNameEndingWith("Behavior")
+            .And()
+            .AreClasses()
+            .Should()
+            .BeSealed()
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "Behaviors should be sealed. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    #endregion
+
+    #region Configuration Tests
+
+    [Fact]
+    public void Options_Classes_Should_Be_Sealed()
+    {
+        // Act
+        var result = Types.InAssembly(InfrastructureAssembly)
+            .That()
+            .HaveNameEndingWith("Options")
+            .And()
+            .AreClasses()
+            .Should()
+            .BeSealed()
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "Options classes should be sealed. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    [Fact]
+    public void Options_Classes_Should_Have_SectionName_Constant()
+    {
+        // Arrange
+        var optionsTypes = Types.InAssembly(InfrastructureAssembly)
+            .That()
+            .HaveNameEndingWith("Options")
+            .And()
+            .AreClasses()
+            .GetTypes();
+
+        // Assert
+        foreach (var optionsType in optionsTypes)
+        {
+            var hasSectionName = optionsType.GetField("SectionName", BindingFlags.Public | BindingFlags.Static) != null;
+            hasSectionName.Should().BeTrue(
+                because: $"Options class {optionsType.Name} should have a public static SectionName field");
+        }
+    }
+
+    #endregion
+
+    #region Event Handler Tests
+
+    [Fact]
+    public void Domain_Event_Handlers_Should_Be_Named_With_Handler_Suffix()
+    {
+        // Act
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .ImplementInterface(typeof(Application.Abstractions.Messaging.IDomainEventHandler<>))
+            .Should()
+            .HaveNameEndingWith("Handler")
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "Domain event handlers should end with 'Handler'. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    [Fact]
+    public void Domain_Event_Handlers_Should_Be_Sealed()
+    {
+        // Act
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .ImplementInterface(typeof(Application.Abstractions.Messaging.IDomainEventHandler<>))
+            .Should()
+            .BeSealed()
+            .GetResult();
+
+        // Assert
+        result.IsSuccessful.Should().BeTrue(
+            because: "Domain event handlers should be sealed. " +
+                     $"Failing types: {string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? Array.Empty<string>())}");
+    }
+
+    #endregion
 }
