@@ -1,11 +1,13 @@
 using AnalyzerCore.Api.Hubs;
 using AnalyzerCore.Api.Middleware;
+using AnalyzerCore.Api.Versioning;
 using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
 using AnalyzerCore.Infrastructure.Authentication;
 using AnalyzerCore.Infrastructure.Logging;
 using AnalyzerCore.Infrastructure.RealTime;
 using AnalyzerCore.Infrastructure.Telemetry;
+using Asp.Versioning;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -72,12 +74,13 @@ public class Program
             // Add Controllers
             builder.Services.AddControllers();
 
-            // Add SignalR for real-time updates
+            // Add SignalR for real-time updates with rate limiting
             builder.Services.AddSignalR(options =>
             {
                 options.EnableDetailedErrors = builder.Environment.IsDevelopment();
                 options.KeepAliveInterval = TimeSpan.FromSeconds(15);
                 options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+                options.AddFilter<Hubs.Filters.HubRateLimitFilter>();
             });
 
             // Register real-time notification service (with BlockchainHub)
@@ -95,21 +98,22 @@ public class Program
                 .AddInMemoryStorage();
             }
 
+            // Add API Versioning
+            builder.Services.AddApiVersioningConfiguration();
+
             // Add Swagger/OpenAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
-                options.SwaggerDoc("v1", new OpenApiInfo
+                // Add API tags for grouping
+                options.TagActionsBy(api =>
                 {
-                    Title = "Blockchain Analyzer API",
-                    Version = "v1",
-                    Description = "API for blockchain analysis - pool and token tracking",
-                    Contact = new OpenApiContact
-                    {
-                        Name = "AIgen Solutions",
-                        Email = "info@aigen.solutions"
-                    }
+                    var controllerName = api.ActionDescriptor.RouteValues["controller"];
+                    return new[] { controllerName ?? "Other" };
                 });
+
+                // Order tags alphabetically
+                options.OrderActionsBy(api => api.RelativePath);
 
                 // Add JWT Authentication to Swagger
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -175,7 +179,13 @@ public class Program
                 app.UseSwagger();
                 app.UseSwaggerUI(options =>
                 {
-                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Blockchain Analyzer API v1");
+                    var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+                    foreach (var description in provider.ApiVersionDescriptions.Reverse())
+                    {
+                        options.SwaggerEndpoint(
+                            $"/swagger/{description.GroupName}/swagger.json",
+                            $"Blockchain Analyzer API {description.GroupName}");
+                    }
                     options.RoutePrefix = string.Empty; // Swagger at root
                 });
             }

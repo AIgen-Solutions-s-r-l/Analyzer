@@ -1,4 +1,5 @@
 using AnalyzerCore.Domain.Abstractions;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AnalyzerCore.Api.Controllers;
@@ -7,7 +8,8 @@ namespace AnalyzerCore.Api.Controllers;
 /// Base API controller with Result pattern to ActionResult mapping.
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public abstract class ApiControllerBase : ControllerBase
 {
