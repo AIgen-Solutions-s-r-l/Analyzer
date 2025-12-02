@@ -81,6 +81,24 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services
+            .AddOptions<ArbitrageScannerOptions>()
+            .Bind(configuration.GetSection(ArbitrageScannerOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
+            .AddOptions<WebSocketRateLimitOptions>()
+            .Bind(configuration.GetSection(WebSocketRateLimitOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
+            .AddOptions<RedisOptions>()
+            .Bind(configuration.GetSection(RedisOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // Add resilience policies
         services.AddResiliencePolicies(configuration);
 
@@ -134,6 +152,9 @@ public static class DependencyInjection
         // Rate Limiter for RPC calls
         services.AddSingleton<IRpcRateLimiter, SlidingWindowRateLimiter>();
 
+        // WebSocket Rate Limiter
+        services.AddSingleton<IWebSocketRateLimiter, WebSocketRateLimiter>();
+
         // Blockchain Service with optional rate limiting decorator
         services.AddScoped<BlockchainService>();
         services.AddScoped<IBlockchainService>(sp =>
@@ -157,7 +178,27 @@ public static class DependencyInjection
 
         // Caching
         services.AddMemoryCache();
-        services.AddSingleton<ICacheService, InMemoryCacheService>();
+        services.AddSingleton<InMemoryCacheService>();
+
+        // Redis Cache (optional)
+        var redisOptions = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>()
+            ?? new RedisOptions();
+
+        if (redisOptions.Enabled)
+        {
+            services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<RedisOptions>>().Value;
+                return StackExchange.Redis.ConnectionMultiplexer.Connect(opts.GetFullConnectionString());
+            });
+
+            services.AddSingleton<RedisCacheService>();
+            services.AddSingleton<ICacheService, HybridCacheService>();
+        }
+        else
+        {
+            services.AddSingleton<ICacheService>(sp => sp.GetRequiredService<InMemoryCacheService>());
+        }
 
         // Repositories (with caching decorator)
         services.AddScoped<TokenRepository>();
@@ -225,12 +266,24 @@ public static class DependencyInjection
             services.AddHostedService<CleanupService>();
         }
 
+        // Arbitrage scanner service (if enabled)
+        var arbitrageScannerOptions = configuration.GetSection(ArbitrageScannerOptions.SectionName).Get<ArbitrageScannerOptions>() ?? new ArbitrageScannerOptions();
+        if (arbitrageScannerOptions.Enabled)
+        {
+            services.AddHostedService<ArbitrageScannerService>();
+        }
+
         // Health Checks
-        services.AddHealthChecks()
+        var healthChecks = services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "db", "sql", "ready" })
             .AddCheck<BlockchainRpcHealthCheck>("blockchain-rpc", tags: new[] { "rpc", "blockchain", "ready" })
             .AddCheck<OutboxHealthCheck>("outbox", tags: new[] { "outbox", "ready" })
             .AddCheck<MemoryHealthCheck>("memory", tags: new[] { "memory", "live" });
+
+        if (redisOptions.Enabled)
+        {
+            healthChecks.AddCheck<RedisHealthCheck>("redis", tags: new[] { "cache", "redis", "ready" });
+        }
 
         return services;
     }
