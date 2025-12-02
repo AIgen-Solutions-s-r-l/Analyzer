@@ -3,6 +3,9 @@ using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
 using AnalyzerCore.Infrastructure.Authentication;
 using AnalyzerCore.Infrastructure.Telemetry;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
@@ -62,6 +65,18 @@ public class Program
 
             // Add Controllers
             builder.Services.AddControllers();
+
+            // Add Health Checks UI (development only)
+            if (builder.Environment.IsDevelopment())
+            {
+                builder.Services.AddHealthChecksUI(options =>
+                {
+                    options.SetEvaluationTimeInSeconds(30);
+                    options.MaximumHistoryEntriesPerEndpoint(60);
+                    options.AddHealthCheckEndpoint("API", "/health");
+                })
+                .AddInMemoryStorage();
+            }
 
             // Add Swagger/OpenAPI
             builder.Services.AddEndpointsApiExplorer();
@@ -155,8 +170,35 @@ public class Program
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Health checks endpoint
-            app.MapHealthChecks("/health");
+            // Health checks endpoints
+            // Main health check - all checks
+            app.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            });
+
+            // Liveness probe - just checks if the app is running
+            app.MapHealthChecks("/health/live", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("live"),
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            });
+
+            // Readiness probe - checks if the app can handle requests
+            app.MapHealthChecks("/health/ready", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("ready"),
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            });
+
+            // Health Checks UI (development only)
+            if (app.Environment.IsDevelopment())
+            {
+                app.MapHealthChecksUI(options =>
+                {
+                    options.UIPath = "/health-ui";
+                });
+            }
 
             // Prometheus metrics endpoint
             app.UseOpenTelemetryPrometheusScrapingEndpoint();

@@ -216,8 +216,10 @@ public static class DependencyInjection
 
         // Health Checks
         services.AddHealthChecks()
-            .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "db", "sql" })
-            .AddCheck<BlockchainRpcHealthCheck>("blockchain-rpc", tags: new[] { "rpc", "blockchain" });
+            .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "db", "sql", "ready" })
+            .AddCheck<BlockchainRpcHealthCheck>("blockchain-rpc", tags: new[] { "rpc", "blockchain", "ready" })
+            .AddCheck<OutboxHealthCheck>("outbox", tags: new[] { "outbox", "ready" })
+            .AddCheck<MemoryHealthCheck>("memory", tags: new[] { "memory", "live" });
 
         return services;
     }
