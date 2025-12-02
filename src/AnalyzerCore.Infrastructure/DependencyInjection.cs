@@ -168,6 +168,9 @@ public static class DependencyInjection
         // Price Service
         services.AddScoped<IPriceService, PriceService>();
 
+        // Arbitrage Service
+        services.AddScoped<IArbitrageService, ArbitrageService>();
+
         services.AddScoped<ITokenRepository>(sp =>
         {
             var cachingOptions = sp.GetRequiredService<IOptions<CachingOptions>>().Value;
