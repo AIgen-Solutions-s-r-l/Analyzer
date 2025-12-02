@@ -74,6 +74,12 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services
+            .AddOptions<CleanupOptions>()
+            .Bind(configuration.GetSection(CleanupOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // Legacy ChainConfig support (for backward compatibility)
         services.AddSingleton(sp =>
         {
@@ -195,6 +201,13 @@ public static class DependencyInjection
         if (outboxOptions.Enabled)
         {
             services.AddHostedService<OutboxProcessorService>();
+        }
+
+        // Cleanup service (if enabled)
+        var cleanupOptions = configuration.GetSection(CleanupOptions.SectionName).Get<CleanupOptions>() ?? new CleanupOptions();
+        if (cleanupOptions.Enabled)
+        {
+            services.AddHostedService<CleanupService>();
         }
 
         // Health Checks
