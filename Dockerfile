@@ -1,3 +1,8 @@
+# ============================================
+# Blockchain Analyzer API - Multi-stage Dockerfile
+# ============================================
+# Build optimized for layer caching and minimal image size
+
 # ========================================
 # Stage 1: Build
 # ========================================
@@ -12,7 +17,7 @@ COPY src/AnalyzerCore.Application/AnalyzerCore.Application.csproj src/AnalyzerCo
 COPY src/AnalyzerCore.Infrastructure/AnalyzerCore.Infrastructure.csproj src/AnalyzerCore.Infrastructure/
 COPY src/AnalyzerCore.Api/AnalyzerCore.Api.csproj src/AnalyzerCore.Api/
 
-# Restore dependencies
+# Restore dependencies (cached if csproj files don't change)
 RUN dotnet restore
 
 # Copy source code

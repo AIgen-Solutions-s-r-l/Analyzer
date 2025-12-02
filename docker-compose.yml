@@ -24,6 +24,9 @@ services:
       - Jwt__Secret=${JWT_SECRET:-your-super-secret-key-that-is-at-least-32-characters}
       - Jwt__Issuer=${JWT_ISSUER:-AnalyzerCore}
       - Jwt__Audience=${JWT_AUDIENCE:-AnalyzerCore}
+      - Redis__Enabled=true
+      - Redis__ConnectionString=redis:6379
+      - Redis__InstanceName=AnalyzerCore:
     volumes:
       - app_data:/app/data
       - app_logs:/app/logs
@@ -34,6 +37,8 @@ services:
         condition: service_started
       seq:
         condition: service_started
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health/live"]
       interval: 30s
@@ -141,6 +146,26 @@ services:
     networks:
       - analyzercore
 
+  # ========================================
+  # Redis - Distributed Cache
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: analyzercore-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - analyzercore
+
 volumes:
   app_data:
     name: analyzercore_app_data
@@ -152,6 +177,8 @@ volumes:
     name: analyzercore_grafana_data
   seq_data:
     name: analyzercore_seq_data
+  redis_data:
+    name: analyzercore_redis_data
 
 networks:
   analyzercore:
