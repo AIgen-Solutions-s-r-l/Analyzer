@@ -1,8 +1,10 @@
+using AnalyzerCore.Api.Hubs;
 using AnalyzerCore.Api.Middleware;
 using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
 using AnalyzerCore.Infrastructure.Authentication;
 using AnalyzerCore.Infrastructure.Logging;
+using AnalyzerCore.Infrastructure.RealTime;
 using AnalyzerCore.Infrastructure.Telemetry;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -69,6 +71,17 @@ public class Program
 
             // Add Controllers
             builder.Services.AddControllers();
+
+            // Add SignalR for real-time updates
+            builder.Services.AddSignalR(options =>
+            {
+                options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+                options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+                options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+            });
+
+            // Register real-time notification service (with BlockchainHub)
+            builder.Services.AddScoped<IRealtimeNotificationService, SignalRNotificationService<BlockchainHub>>();
 
             // Add Health Checks UI (development only)
             if (builder.Environment.IsDevelopment())
@@ -212,6 +225,9 @@ public class Program
 
             // Map controllers
             app.MapControllers();
+
+            // Map SignalR hubs
+            app.MapHub<BlockchainHub>("/hubs/blockchain");
 
             app.Run();
         }
