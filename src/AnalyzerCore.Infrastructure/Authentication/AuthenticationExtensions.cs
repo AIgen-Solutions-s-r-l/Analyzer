@@ -71,6 +71,21 @@ public static class AuthenticationExtensions
                         context.Response.Headers.Add("Token-Expired", "true");
                     }
                     return Task.CompletedTask;
+                },
+                // Handle WebSocket/SignalR authentication via query string
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+
+                    // If the request is for a hub and has a token in query string
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken) &&
+                        path.StartsWithSegments("/hubs"))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
                 }
             };
         })
@@ -85,6 +100,14 @@ public static class AuthenticationExtensions
                     context.Request.Query.ContainsKey("api_key"))
                 {
                     return ApiKeyAuthenticationDefaults.AuthenticationScheme;
+                }
+
+                // For SignalR connections, check for access_token in query string
+                var path = context.Request.Path;
+                if (path.StartsWithSegments("/hubs") &&
+                    context.Request.Query.ContainsKey("access_token"))
+                {
+                    return JwtBearerDefaults.AuthenticationScheme;
                 }
 
                 // Default to JWT Bearer

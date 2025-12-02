@@ -191,4 +191,53 @@ public class SignalRNotificationService<THub> : IRealtimeNotificationService whe
             tokenSymbol,
             changePercent);
     }
+
+    public async Task BroadcastPriceUpdateAsync(PriceUpdateMessage message)
+    {
+        var groupName = $"token:{message.TokenAddress.ToLowerInvariant()}";
+        await _hubContext.Clients.Group(groupName).SendAsync("PriceUpdate", message);
+
+        _logger.LogDebug(
+            "Broadcasted price update for {TokenSymbol}: {OldPrice} -> {NewPrice}",
+            message.TokenSymbol,
+            message.OldPrice,
+            message.NewPrice);
+    }
+
+    public async Task BroadcastAlertAsync(AlertMessage message)
+    {
+        // Send to all connected clients for alerts
+        await _hubContext.Clients.All.SendAsync("Alert", message);
+
+        // Also send to severity-specific groups
+        await _hubContext.Clients.Group($"alerts:{message.Severity}").SendAsync("Alert", message);
+        await _hubContext.Clients.Group($"alerts:{message.Type}").SendAsync("Alert", message);
+
+        _logger.LogInformation(
+            "Broadcasted {Severity} alert: {Title}",
+            message.Severity,
+            message.Title);
+    }
+
+    public async Task BroadcastArbitrageOpportunityAsync(ArbitrageOpportunityMessage message)
+    {
+        // Send to all arbitrage subscribers
+        await _hubContext.Clients.Group("arbitrage:all").SendAsync("ArbitrageOpportunity", message);
+
+        // Send to profit threshold groups
+        var profitThresholds = new[] { 10m, 50m, 100m, 500m, 1000m };
+        foreach (var threshold in profitThresholds)
+        {
+            if (message.NetProfitUsd >= threshold)
+            {
+                await _hubContext.Clients.Group($"arbitrage:min{threshold:F0}")
+                    .SendAsync("ArbitrageOpportunity", message);
+            }
+        }
+
+        _logger.LogDebug(
+            "Broadcasted arbitrage opportunity: {TokenSymbol} ${NetProfit:F2}",
+            message.TokenSymbol,
+            message.NetProfitUsd);
+    }
 }
