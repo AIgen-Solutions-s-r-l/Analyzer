@@ -1,0 +1,155 @@
+groups:
+  - name: analyzercore-api
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_request_duration_seconds_count{job="analyzercore", http_response_status_code=~"5.."}[5m]))
+          / sum(rate(http_server_request_duration_seconds_count{job="analyzercore"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, rate(http_server_request_duration_seconds_bucket{job="analyzercore"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 2s)"
+
+      - alert: ServiceDown
+        expr: up{job="analyzercore"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AnalyzerCore service is down"
+          description: "Service {{ $labels.instance }} is not responding"
+
+  - name: analyzercore-blockchain
+    rules:
+      - alert: BlockLagHigh
+        expr: analyzercore_block_lag{job="analyzercore"} > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High block lag detected"
+          description: "Block lag is {{ $value }} blocks behind"
+
+      - alert: BlockLagCritical
+        expr: analyzercore_block_lag{job="analyzercore"} > 100
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical block lag detected"
+          description: "Block lag is {{ $value }} blocks behind"
+
+      - alert: RpcErrorsHigh
+        expr: rate(analyzercore_rpc_errors_total{job="analyzercore"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High RPC error rate"
+          description: "RPC errors are occurring at {{ $value | humanize }}/sec"
+
+      - alert: RpcLatencyHigh
+        expr: |
+          histogram_quantile(0.95, rate(analyzercore_rpc_duration_seconds_bucket{job="analyzercore"}[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High RPC latency"
+          description: "P95 RPC latency is {{ $value | humanizeDuration }}"
+
+  - name: analyzercore-outbox
+    rules:
+      - alert: OutboxBacklogGrowing
+        expr: analyzercore_outbox_pending_messages{job="analyzercore"} > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox backlog is growing"
+          description: "{{ $value }} messages pending in outbox"
+
+      - alert: OutboxBacklogCritical
+        expr: analyzercore_outbox_pending_messages{job="analyzercore"} > 500
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical outbox backlog"
+          description: "{{ $value }} messages pending in outbox"
+
+      - alert: OutboxFailedMessages
+        expr: analyzercore_outbox_failed_messages{job="analyzercore"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Failed outbox messages detected"
+          description: "{{ $value }} failed messages in outbox"
+
+      - alert: OutboxOldMessages
+        expr: analyzercore_outbox_oldest_message_age_seconds{job="analyzercore"} > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Old messages in outbox"
+          description: "Oldest message is {{ $value | humanizeDuration }} old"
+
+  - name: analyzercore-rate-limit
+    rules:
+      - alert: RateLimitRejections
+        expr: rate(analyzercore_rate_limit_rejections_total{job="analyzercore"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit rejections occurring"
+          description: "{{ $value | humanize }}/sec requests being rejected"
+
+  - name: analyzercore-resources
+    rules:
+      - alert: HighMemoryUsage
+        expr: |
+          process_runtime_dotnet_gc_heap_size_bytes{job="analyzercore", generation="gen2"} > 500000000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Gen2 heap size is {{ $value | humanize1024 }}B"
+
+      - alert: HighGCRate
+        expr: rate(process_runtime_dotnet_gc_collections_count_total{job="analyzercore", generation="gen2"}[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Gen2 GC rate"
+          description: "Gen2 GC rate is {{ $value | humanize }}/sec"
+
+  - name: analyzercore-cache
+    rules:
+      - alert: LowCacheHitRate
+        expr: |
+          sum(rate(analyzercore_cache_hits_total{job="analyzercore"}[5m]))
+          / (sum(rate(analyzercore_cache_hits_total{job="analyzercore"}[5m]))
+          + sum(rate(analyzercore_cache_misses_total{job="analyzercore"}[5m]))) < 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
