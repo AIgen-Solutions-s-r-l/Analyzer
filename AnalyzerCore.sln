@@ -20,6 +20,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnalyzerCore.Architecture.T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnalyzerCore.Application.Tests", "tests\AnalyzerCore.Application.Tests\AnalyzerCore.Application.Tests.csproj", "{BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnalyzerCore.Api.Tests", "tests\AnalyzerCore.Api.Tests\AnalyzerCore.Api.Tests.csproj", "{CCCCCCCC-DDDD-EEEE-FFFF-000000000000}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,6 +56,10 @@ Global
 		{BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CCCCCCCC-DDDD-EEEE-FFFF-000000000000}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CCCCCCCC-DDDD-EEEE-FFFF-000000000000}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CCCCCCCC-DDDD-EEEE-FFFF-000000000000}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CCCCCCCC-DDDD-EEEE-FFFF-000000000000}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D64C1913-3E6B-4E6E-9176-9E4B5EB3827A} = {5EA7EE66-9E10-45D8-9C7D-E44B3E9559A4}
@@ -63,5 +69,6 @@ Global
 		{11111111-2222-3333-4444-555555555555} = {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 		{66666666-7777-8888-9999-AAAAAAAAAAAA} = {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 		{BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF} = {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+		{CCCCCCCC-DDDD-EEEE-FFFF-000000000000} = {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 	EndGlobalSection
 EndGlobal
