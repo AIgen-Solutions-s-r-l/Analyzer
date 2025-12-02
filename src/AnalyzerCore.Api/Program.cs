@@ -84,7 +84,12 @@ public class Program
             });
 
             // Register real-time notification service (with BlockchainHub)
-            builder.Services.AddScoped<IRealtimeNotificationService, SignalRNotificationService<BlockchainHub>>();
+            // Register as both Infrastructure and Domain interface implementations
+            builder.Services.AddScoped<SignalRNotificationService<BlockchainHub>>();
+            builder.Services.AddScoped<IRealtimeNotificationService>(sp =>
+                sp.GetRequiredService<SignalRNotificationService<BlockchainHub>>());
+            builder.Services.AddScoped<Domain.Services.IRealtimeNotificationService>(sp =>
+                sp.GetRequiredService<SignalRNotificationService<BlockchainHub>>());
 
             // Add Health Checks UI (development only)
             if (builder.Environment.IsDevelopment())

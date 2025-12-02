@@ -62,6 +62,15 @@ public interface IRealtimeNotificationService
     /// Broadcasts an arbitrage opportunity message to arbitrage subscribers.
     /// </summary>
     Task BroadcastArbitrageOpportunityAsync(ArbitrageOpportunityMessage message);
+
+    /// <summary>
+    /// Notifies clients about a token info update.
+    /// </summary>
+    Task NotifyTokenUpdatedAsync(
+        string tokenAddress,
+        string newSymbol,
+        string newName,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

@@ -1,7 +1,9 @@
 using AnalyzerCore.Domain.Entities;
+using AnalyzerCore.Domain.Services;
 using AnalyzerCore.Domain.ValueObjects;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using DomainNotificationService = AnalyzerCore.Domain.Services.IRealtimeNotificationService;
 
 namespace AnalyzerCore.Infrastructure.RealTime;
 
@@ -9,7 +11,7 @@ namespace AnalyzerCore.Infrastructure.RealTime;
 /// SignalR-based implementation of real-time notifications.
 /// Generic implementation that works with any Hub type.
 /// </summary>
-public class SignalRNotificationService<THub> : IRealtimeNotificationService where THub : Hub
+public class SignalRNotificationService<THub> : IRealtimeNotificationService, DomainNotificationService where THub : Hub
 {
     private readonly IHubContext<THub> _hubContext;
     private readonly ILogger<SignalRNotificationService<THub>> _logger;
@@ -239,5 +241,86 @@ public class SignalRNotificationService<THub> : IRealtimeNotificationService whe
             "Broadcasted arbitrage opportunity: {TokenSymbol} ${NetProfit:F2}",
             message.TokenSymbol,
             message.NetProfitUsd);
+    }
+
+    public async Task NotifyTokenUpdatedAsync(
+        string tokenAddress,
+        string newSymbol,
+        string newName,
+        CancellationToken cancellationToken = default)
+    {
+        var message = new
+        {
+            TokenAddress = tokenAddress.ToLowerInvariant(),
+            Symbol = newSymbol,
+            Name = newName,
+            Timestamp = DateTime.UtcNow,
+            Type = "TokenUpdated"
+        };
+
+        var groupName = $"token:{tokenAddress.ToLowerInvariant()}";
+        await _hubContext.Clients.Group(groupName).SendAsync("TokenUpdated", message, cancellationToken);
+
+        _logger.LogDebug("Broadcasted token update for {TokenAddress}: {Symbol}", tokenAddress, newSymbol);
+    }
+
+    // Domain notification service methods with cancellation token support
+    Task DomainNotificationService.NotifySignificantPriceChangeAsync(
+        string tokenAddress,
+        string tokenSymbol,
+        decimal oldPrice,
+        decimal newPrice,
+        decimal changePercent,
+        CancellationToken cancellationToken)
+    {
+        return NotifySignificantPriceChangeAsync(tokenAddress, tokenSymbol, oldPrice, newPrice, changePercent);
+    }
+
+    async Task DomainNotificationService.NotifyArbitrageOpportunityAsync(
+        string tokenAddress,
+        string tokenSymbol,
+        decimal profitUsd,
+        decimal spreadPercent,
+        CancellationToken cancellationToken)
+    {
+        var message = new ArbitrageOpportunityMessage
+        {
+            OpportunityId = Guid.NewGuid(),
+            TokenAddress = tokenAddress,
+            TokenSymbol = tokenSymbol,
+            SpreadPercent = spreadPercent,
+            ExpectedProfitUsd = profitUsd,
+            NetProfitUsd = profitUsd,
+            PathLength = 2,
+            DetectedAt = DateTime.UtcNow
+        };
+
+        await BroadcastArbitrageOpportunityAsync(message);
+    }
+
+    async Task DomainNotificationService.NotifyLargeArbitrageAlertAsync(
+        string tokenAddress,
+        string tokenSymbol,
+        decimal profitUsd,
+        decimal spreadPercent,
+        CancellationToken cancellationToken)
+    {
+        var alertMessage = new AlertMessage
+        {
+            Type = "LargeArbitrage",
+            Severity = "warning",
+            Title = $"Large Arbitrage Opportunity: {tokenSymbol}",
+            Message = $"Detected ${profitUsd:F2} profit opportunity with {spreadPercent:F2}% spread",
+            Data = new Dictionary<string, object>
+            {
+                ["tokenAddress"] = tokenAddress,
+                ["tokenSymbol"] = tokenSymbol,
+                ["profitUsd"] = profitUsd,
+                ["spreadPercent"] = spreadPercent
+            },
+            Timestamp = DateTime.UtcNow
+        };
+
+        await BroadcastAlertAsync(alertMessage);
     }
 }
