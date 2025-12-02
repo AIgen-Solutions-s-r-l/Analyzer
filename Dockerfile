@@ -33,7 +33,7 @@ RUN dotnet publish -c Release -o /app/publish --no-restore \
 # ========================================
 # Stage 3: Runtime
 # ========================================
-FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 
 # Install required packages
 RUN apk add --no-cache \
