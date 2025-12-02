@@ -15,6 +15,7 @@ using AnalyzerCore.Infrastructure.Persistence;
 using AnalyzerCore.Infrastructure.Persistence.Repositories;
 using AnalyzerCore.Infrastructure.RateLimiting;
 using AnalyzerCore.Infrastructure.Repositories;
+using AnalyzerCore.Infrastructure.Resilience;
 using AnalyzerCore.Infrastructure.Services;
 using AnalyzerCore.Infrastructure.Telemetry;
 using Microsoft.EntityFrameworkCore;
@@ -79,6 +80,9 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(CleanupOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // Add resilience policies
+        services.AddResiliencePolicies(configuration);
 
         // Legacy ChainConfig support (for backward compatibility)
         services.AddSingleton(sp =>
