@@ -120,7 +120,8 @@ jobs:
         with:
           filename: coverage/**/coverage.cobertura.xml
           badge: true
-          fail_below_min: false
+          fail_below_min: true
+          thresholds: '60 70'
           format: markdown
           hide_branch_rate: false
           hide_complexity: false
@@ -173,7 +174,6 @@ jobs:
         run: |
           dotnet tool install --global security-scan
           security-scan . --excl-proj=*Tests*
-        continue-on-error: true
 
   docker:
     name: Docker Build & Push

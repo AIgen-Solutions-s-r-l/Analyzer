@@ -7,12 +7,31 @@ The Blockchain Analyzer API provides endpoints for monitoring and analyzing bloc
 ## Base URL
 
 ```
-http://localhost:5000/api/v1
+http://localhost:8080/api/v1
 ```
+
+> **Note:** The default port is `8080` when running via Docker. For local development without Docker, the port may vary based on your `launchSettings.json` configuration.
 
 ## Authentication
 
-Currently, the API is designed for internal use and does not require authentication.
+The API requires authentication via API key or JWT Bearer token.
+
+### API Key Authentication
+Include your API key in the `X-API-Key` header:
+```http
+X-API-Key: your-api-key-here
+```
+
+### JWT Bearer Token
+Include a JWT token in the Authorization header:
+```http
+Authorization: Bearer your-jwt-token-here
+```
+
+### Public Endpoints
+The following endpoints do not require authentication:
+- `GET /api/v1/prices/quote-currencies`
+- `GET /health`, `/health/live`, `/health/ready`
 
 ## Endpoints
 
@@ -257,14 +276,16 @@ interface Pool {
 
 Get Token:
 ```bash
-curl -X GET "http://localhost:5000/api/v1/tokens/0x...?chainId=1" \
-  -H "Accept: application/json"
+curl -X GET "http://localhost:8080/api/v1/tokens/0x...?chainId=1" \
+  -H "Accept: application/json" \
+  -H "X-API-Key: your-api-key"
 ```
 
 List Pools:
 ```bash
-curl -X GET "http://localhost:5000/api/v1/pools?factory=0x...&page=1&pageSize=20" \
-  -H "Accept: application/json"
+curl -X GET "http://localhost:8080/api/v1/pools?factory=0x...&page=1&pageSize=20" \
+  -H "Accept: application/json" \
+  -H "X-API-Key: your-api-key"
 ```
 
 ### C# Example
@@ -272,8 +293,9 @@ curl -X GET "http://localhost:5000/api/v1/pools?factory=0x...&page=1&pageSize=20
 ```csharp
 using var httpClient = new HttpClient
 {
-    BaseAddress = new Uri("http://localhost:5000/api/v1/")
+    BaseAddress = new Uri("http://localhost:8080/api/v1/")
 };
+httpClient.DefaultRequestHeaders.Add("X-API-Key", "your-api-key");
 
 var response = await httpClient.GetAsync($"tokens/{address}?chainId={chainId}");
 if (response.IsSuccessStatusCode)
@@ -285,16 +307,34 @@ if (response.IsSuccessStatusCode)
 
 ## WebSocket Support
 
-Real-time updates are available through WebSocket connections:
+Real-time updates are available through SignalR WebSocket connections:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:5000/api/v1/ws');
+// Using @microsoft/signalr package
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("http://localhost:8080/hubs/blockchain", {
+        accessTokenFactory: () => "your-api-key"
+    })
+    .withAutomaticReconnect()
+    .build();
 
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log('New pool:', data);
-};
+// Subscribe to price updates
+connection.on("ReceivePriceUpdate", (data) => {
+    console.log(`Price update: ${data.tokenAddress} = $${data.priceUsd}`);
+});
+
+// Connect and subscribe
+await connection.start();
+await connection.invoke("SubscribeToToken", "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
 ```
+
+### Available Subscriptions
+- `SubscribeToPool(poolAddress)` - Pool reserve updates
+- `SubscribeToToken(tokenAddress)` - Token price updates
+- `SubscribeToBlocks()` - New block notifications
+- `SubscribeToArbitrage(minProfitUsd?)` - Arbitrage alerts
+- `SubscribeToNewTokens()` - New token discoveries
+- `SubscribeToNewPools()` - New pool discoveries
 
 ## API Versioning
 
