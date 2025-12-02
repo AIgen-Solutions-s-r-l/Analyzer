@@ -120,13 +120,13 @@ public static class TelemetryServiceExtensions
                     tracing.AddSource(sourceName);
                 }
 
-                // Export to Jaeger
+                // Export to Jaeger via OTLP (Jaeger supports OTLP natively)
                 if (options.JaegerEnabled)
                 {
-                    tracing.AddJaegerExporter(jaeger =>
+                    tracing.AddOtlpExporter(otlp =>
                     {
-                        jaeger.AgentHost = options.JaegerAgentHost;
-                        jaeger.AgentPort = options.JaegerAgentPort;
+                        // Jaeger OTLP endpoint (default: http://localhost:4317)
+                        otlp.Endpoint = new Uri($"http://{options.JaegerAgentHost}:4317");
                     });
                 }
 
