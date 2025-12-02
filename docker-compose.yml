@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # AnalyzerCore API
+  # ========================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: analyzercore-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/analyzer.db
+      - ChainConfig__RpcUrl=${RPC_URL:-rpc.ankr.com/eth}
+      - ChainConfig__RpcPort=${RPC_PORT:-443}
+      - ChainConfig__ChainId=${CHAIN_ID:-1}
+      - Telemetry__JaegerAgentHost=jaeger
+      - Telemetry__JaegerAgentPort=6831
+      - Logging__SeqEnabled=true
+      - Logging__SeqServerUrl=http://seq:80
+      - Jwt__Secret=${JWT_SECRET:-your-super-secret-key-that-is-at-least-32-characters}
+      - Jwt__Issuer=${JWT_ISSUER:-AnalyzerCore}
+      - Jwt__Audience=${JWT_AUDIENCE:-AnalyzerCore}
+    volumes:
+      - app_data:/app/data
+      - app_logs:/app/logs
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+      seq:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - analyzercore
+
+  # ========================================
+  # Prometheus - Metrics
+  # ========================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: analyzercore-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - analyzercore
+
+  # ========================================
+  # Grafana - Dashboards
+  # ========================================
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: analyzercore-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - analyzercore
+
+  # ========================================
+  # Jaeger - Distributed Tracing
+  # ========================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: analyzercore-jaeger
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14250:14250"
+      - "14268:14268"
+      - "14269:14269"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - analyzercore
+
+  # ========================================
+  # Seq - Log Aggregation
+  # ========================================
+  seq:
+    image: datalust/seq:2023.4
+    container_name: analyzercore-seq
+    ports:
+      - "5341:80"
+      - "5342:5341"
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq_data:/data
+    restart: unless-stopped
+    networks:
+      - analyzercore
+
+volumes:
+  app_data:
+    name: analyzercore_app_data
+  app_logs:
+    name: analyzercore_app_logs
+  prometheus_data:
+    name: analyzercore_prometheus_data
+  grafana_data:
+    name: analyzercore_grafana_data
+  seq_data:
+    name: analyzercore_seq_data
+
+networks:
+  analyzercore:
+    name: analyzercore_network
+    driver: bridge

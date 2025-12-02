@@ -1,0 +1,26 @@
+version: '3.8'
+
+# Development override - use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - ./src:/src/src:ro
+      - app_data:/app/data
+    ports:
+      - "8080:8080"
+      - "5000:5000"
+    command: >
+      sh -c "cd /src/src/AnalyzerCore.Api &&
+             dotnet watch run --urls http://+:8080"
+
+  grafana:
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin

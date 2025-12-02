@@ -116,11 +116,33 @@ Application entry point:
 ```
 
 ### Installation
+
+#### Option 1: Docker (Recommended)
 ```bash
 # Clone repository
 git clone https://github.com/yourusername/blockchain-analyzer.git
+cd blockchain-analyzer
 
-# Navigate to project
+# Copy and configure environment
+cp .env.example .env
+# Edit .env with your RPC URL and JWT secret
+
+# Start full stack with Docker Compose
+docker-compose up -d
+
+# Access services:
+# - API: http://localhost:8080
+# - Swagger: http://localhost:8080/swagger
+# - Grafana: http://localhost:3000 (admin/admin)
+# - Jaeger: http://localhost:16686
+# - Seq: http://localhost:5341
+# - Prometheus: http://localhost:9090
+```
+
+#### Option 2: Local Development
+```bash
+# Clone repository
+git clone https://github.com/yourusername/blockchain-analyzer.git
 cd blockchain-analyzer
 
 # Restore packages
@@ -131,6 +153,27 @@ dotnet ef database update
 
 # Start application
 dotnet run --project src/AnalyzerCore.Api/AnalyzerCore.Api.csproj
+
+# (Optional) Start monitoring stack
+cd monitoring && docker-compose up -d
+```
+
+### Docker Commands
+```bash
+# Build image only
+docker build -t analyzercore .
+
+# Run with development overrides
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# View logs
+docker-compose logs -f api
+
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
 ```
 
 ## 💡 How It Works
