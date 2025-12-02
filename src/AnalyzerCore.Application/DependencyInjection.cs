@@ -28,10 +28,12 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
 
         // Register pipeline behaviors in order of execution
-        // 1. Logging (first, to log all requests)
-        // 2. Idempotency (early, to prevent duplicate processing)
-        // 3. Validation (before processing)
-        // 4. Unit of Work (commits after successful handling)
+        // 1. Correlation ID (first, to ensure all logs have correlation ID)
+        // 2. Logging (to log all requests)
+        // 3. Idempotency (early, to prevent duplicate processing)
+        // 4. Validation (before processing)
+        // 5. Unit of Work (commits after successful handling)
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(IdempotencyBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));

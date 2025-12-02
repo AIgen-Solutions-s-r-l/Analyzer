@@ -1,3 +1,4 @@
+using AnalyzerCore.Api.Middleware;
 using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
 using Microsoft.OpenApi.Models;
@@ -17,7 +18,7 @@ public class Program
             .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .WriteTo.Console(
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
         try
@@ -66,6 +67,9 @@ public class Program
             var app = builder.Build();
 
             // Configure HTTP request pipeline
+            // Add correlation ID middleware first to ensure all requests have correlation ID
+            app.UseCorrelationId();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();

@@ -1,3 +1,4 @@
+using AnalyzerCore.Application.Abstractions;
 using AnalyzerCore.Application.Abstractions.Caching;
 using AnalyzerCore.Application.Abstractions.Messaging;
 using AnalyzerCore.Domain.Abstractions;
@@ -8,6 +9,7 @@ using AnalyzerCore.Infrastructure.BackgroundServices;
 using AnalyzerCore.Infrastructure.Blockchain;
 using AnalyzerCore.Infrastructure.Caching;
 using AnalyzerCore.Infrastructure.Configuration;
+using AnalyzerCore.Infrastructure.Correlation;
 using AnalyzerCore.Infrastructure.HealthChecks;
 using AnalyzerCore.Infrastructure.Persistence;
 using AnalyzerCore.Infrastructure.Persistence.Repositories;
@@ -97,6 +99,9 @@ public static class DependencyInjection
 
         // Register DbContext as IUnitOfWork
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+
+        // Correlation ID accessor (scoped to share across the request)
+        services.AddScoped<ICorrelationIdAccessor, CorrelationIdAccessor>();
 
         // Idempotency Service
         services.AddScoped<IIdempotencyService, IdempotencyService>();
