@@ -1,6 +1,8 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using AnalyzerCore.Domain.Abstractions;
 using AnalyzerCore.Domain.Errors;
+using SHA3.Net;
 
 namespace AnalyzerCore.Domain.ValueObjects;
 
@@ -96,14 +98,14 @@ public sealed partial class EthereumAddress : IEquatable<EthereumAddress>
     /// </summary>
     public bool IsZeroAddress() => Value == Zero.Value;
 
-    // Simple Keccak256 placeholder - in production, use Nethereum's implementation
+    /// <summary>
+    /// Computes Keccak256 hash for EIP-55 checksum encoding.
+    /// </summary>
     private static string ComputeKeccak256Hash(string input)
     {
-        // This is a simplified version. In production, use:
-        // Nethereum.Util.Sha3Keccack.Current.CalculateHash(input)
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var bytes = System.Text.Encoding.UTF8.GetBytes(input);
-        var hash = sha256.ComputeHash(bytes);
+        using var keccak = Sha3.Sha3256();
+        var bytes = Encoding.UTF8.GetBytes(input);
+        var hash = keccak.ComputeHash(bytes);
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 

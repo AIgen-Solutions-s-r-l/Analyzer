@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+    <PackageReference Include="SHA3.Net" Version="2.0.0" />
   </ItemGroup>
 
 </Project>
