@@ -30,6 +30,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Pool> Pools => Set<Pool>();
     public DbSet<User> Users => Set<User>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<PriceHistory> PriceHistories => Set<PriceHistory>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<IdempotentRequest> IdempotentRequests => Set<IdempotentRequest>();
 
@@ -94,6 +95,44 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
             // Ignore domain events - they are not persisted
             entity.Ignore(e => e.DomainEvents);
+        });
+
+        // PriceHistory configuration
+        modelBuilder.Entity<PriceHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.TokenAddress, e.QuoteTokenSymbol, e.Timestamp });
+            entity.HasIndex(e => e.Timestamp);
+
+            entity.Property(e => e.TokenAddress)
+                .IsRequired()
+                .HasMaxLength(42);
+
+            entity.Property(e => e.QuoteTokenAddress)
+                .IsRequired()
+                .HasMaxLength(42);
+
+            entity.Property(e => e.QuoteTokenSymbol)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(e => e.PoolAddress)
+                .HasMaxLength(42);
+
+            entity.Property(e => e.Price)
+                .HasPrecision(36, 18);
+
+            entity.Property(e => e.PriceUsd)
+                .HasPrecision(36, 18);
+
+            entity.Property(e => e.Reserve0)
+                .HasPrecision(36, 18);
+
+            entity.Property(e => e.Reserve1)
+                .HasPrecision(36, 18);
+
+            entity.Property(e => e.Liquidity)
+                .HasPrecision(36, 18);
         });
 
         // Apply OutboxMessage configuration

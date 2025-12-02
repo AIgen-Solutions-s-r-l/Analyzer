@@ -162,6 +162,11 @@ public static class DependencyInjection
         // Repositories (with caching decorator)
         services.AddScoped<TokenRepository>();
         services.AddScoped<PoolRepository>();
+        services.AddScoped<PriceHistoryRepository>();
+        services.AddScoped<IPriceHistoryRepository>(sp => sp.GetRequiredService<PriceHistoryRepository>());
+
+        // Price Service
+        services.AddScoped<IPriceService, PriceService>();
 
         services.AddScoped<ITokenRepository>(sp =>
         {
