@@ -13,8 +13,10 @@ using AnalyzerCore.Infrastructure.Correlation;
 using AnalyzerCore.Infrastructure.HealthChecks;
 using AnalyzerCore.Infrastructure.Persistence;
 using AnalyzerCore.Infrastructure.Persistence.Repositories;
+using AnalyzerCore.Infrastructure.RateLimiting;
 using AnalyzerCore.Infrastructure.Repositories;
 using AnalyzerCore.Infrastructure.Services;
+using AnalyzerCore.Infrastructure.Telemetry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,6 +68,12 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services
+            .AddOptions<RateLimitOptions>()
+            .Bind(configuration.GetSection(RateLimitOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // Legacy ChainConfig support (for backward compatibility)
         services.AddSingleton(sp =>
         {
@@ -113,7 +121,29 @@ public static class DependencyInjection
             return new Web3(options.GetFullRpcUrl());
         });
 
-        services.AddScoped<IBlockchainService, BlockchainService>();
+        // Rate Limiter for RPC calls
+        services.AddSingleton<IRpcRateLimiter, SlidingWindowRateLimiter>();
+
+        // Blockchain Service with optional rate limiting decorator
+        services.AddScoped<BlockchainService>();
+        services.AddScoped<IBlockchainService>(sp =>
+        {
+            var rateLimitOptions = configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>()
+                ?? new RateLimitOptions();
+
+            var innerService = sp.GetRequiredService<BlockchainService>();
+
+            if (!rateLimitOptions.Enabled)
+            {
+                return innerService;
+            }
+
+            return new RateLimitedBlockchainService(
+                innerService,
+                sp.GetRequiredService<IRpcRateLimiter>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RateLimitedBlockchainService>>(),
+                sp.GetService<ApplicationMetrics>());
+        });
 
         // Caching
         services.AddMemoryCache();
