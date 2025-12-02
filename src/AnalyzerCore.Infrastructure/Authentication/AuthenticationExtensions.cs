@@ -1,6 +1,7 @@
 using System.Text;
 using AnalyzerCore.Domain.Repositories;
 using AnalyzerCore.Infrastructure.Persistence.Repositories;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,12 +10,12 @@ using Microsoft.IdentityModel.Tokens;
 namespace AnalyzerCore.Infrastructure.Authentication;
 
 /// <summary>
-/// Extension methods for JWT authentication registration.
+/// Extension methods for authentication registration.
 /// </summary>
 public static class AuthenticationExtensions
 {
     /// <summary>
-    /// Adds JWT authentication services.
+    /// Adds JWT and API Key authentication services.
     /// </summary>
     public static IServiceCollection AddJwtAuthentication(
         this IServiceCollection services,
@@ -33,18 +34,20 @@ public static class AuthenticationExtensions
         // Register authentication services
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IApiKeyGenerator, ApiKeyGenerator>();
 
-        // Register user repository
+        // Register repositories
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 
-        // Configure JWT Bearer authentication
+        // Configure authentication with multiple schemes
         services.AddAuthentication(options =>
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultAuthenticateScheme = "MultiAuth";
+            options.DefaultChallengeScheme = "MultiAuth";
+            options.DefaultScheme = "MultiAuth";
         })
-        .AddJwtBearer(options =>
+        .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             options.TokenValidationParameters = new TokenValidationParameters
             {
@@ -69,6 +72,23 @@ public static class AuthenticationExtensions
                     }
                     return Task.CompletedTask;
                 }
+            };
+        })
+        .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+            ApiKeyAuthenticationDefaults.AuthenticationScheme, options => { })
+        .AddPolicyScheme("MultiAuth", "JWT or API Key", options =>
+        {
+            options.ForwardDefaultSelector = context =>
+            {
+                // Check for API Key first (header or query)
+                if (context.Request.Headers.ContainsKey("X-API-Key") ||
+                    context.Request.Query.ContainsKey("api_key"))
+                {
+                    return ApiKeyAuthenticationDefaults.AuthenticationScheme;
+                }
+
+                // Default to JWT Bearer
+                return JwtBearerDefaults.AuthenticationScheme;
             };
         });
 

@@ -29,6 +29,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Token> Tokens => Set<Token>();
     public DbSet<Pool> Pools => Set<Pool>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<IdempotentRequest> IdempotentRequests => Set<IdempotentRequest>();
 
@@ -103,6 +104,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         // Apply User configuration
         modelBuilder.ApplyConfiguration(new UserConfiguration());
+
+        // Apply ApiKey configuration
+        modelBuilder.ApplyConfiguration(new ApiKeyConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
