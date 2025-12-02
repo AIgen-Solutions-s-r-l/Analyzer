@@ -44,6 +44,22 @@ public class Program
             // Add Telemetry (OpenTelemetry + Prometheus metrics)
             builder.Services.AddTelemetry(builder.Configuration);
 
+            // Add CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowConfigured", policy =>
+                {
+                    var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                        ?? new[] { "http://localhost:3000" };
+
+                    policy.WithOrigins(origins)
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials()
+                        .WithExposedHeaders("X-Correlation-ID", "Token-Expired");
+                });
+            });
+
             // Add Controllers
             builder.Services.AddControllers();
 
@@ -101,8 +117,23 @@ public class Program
             var app = builder.Build();
 
             // Configure HTTP request pipeline
-            // Add correlation ID middleware first to ensure all requests have correlation ID
+            // 1. Global exception handler (catches all unhandled exceptions)
+            app.UseGlobalExceptionHandler();
+
+            // 2. Request size limit (early rejection of oversized requests)
+            app.UseRequestSizeLimit();
+
+            // 3. Security headers (added to all responses)
+            app.UseSecurityHeaders();
+
+            // 4. Correlation ID (for request tracing)
             app.UseCorrelationId();
+
+            // 5. Request logging with sensitive data masking
+            app.UseRequestLogging();
+
+            // 6. CORS
+            app.UseCors("AllowConfigured");
 
             if (app.Environment.IsDevelopment())
             {
@@ -112,6 +143,12 @@ public class Program
                     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Blockchain Analyzer API v1");
                     options.RoutePrefix = string.Empty; // Swagger at root
                 });
+            }
+
+            // HSTS for production
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseHsts();
             }
 
             // Authentication & Authorization
