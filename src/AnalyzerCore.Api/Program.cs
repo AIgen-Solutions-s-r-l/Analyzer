@@ -1,6 +1,7 @@
 using AnalyzerCore.Api.Middleware;
 using AnalyzerCore.Application;
 using AnalyzerCore.Infrastructure;
+using AnalyzerCore.Infrastructure.Telemetry;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
@@ -35,6 +36,9 @@ public class Program
 
             // Add Infrastructure layer (EF Core, Repositories, Blockchain, Background Services)
             builder.Services.AddInfrastructure(builder.Configuration);
+
+            // Add Telemetry (OpenTelemetry + Prometheus metrics)
+            builder.Services.AddTelemetry(builder.Configuration);
 
             // Add Controllers
             builder.Services.AddControllers();
@@ -82,6 +86,9 @@ public class Program
 
             // Health checks endpoint
             app.MapHealthChecks("/health");
+
+            // Prometheus metrics endpoint
+            app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
             // Map controllers
             app.MapControllers();
