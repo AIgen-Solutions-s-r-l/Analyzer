@@ -29,11 +29,13 @@ public static class DependencyInjection
 
         // Register pipeline behaviors in order of execution
         // 1. Correlation ID (first, to ensure all logs have correlation ID)
-        // 2. Logging (to log all requests)
-        // 3. Idempotency (early, to prevent duplicate processing)
-        // 4. Validation (before processing)
-        // 5. Unit of Work (commits after successful handling)
+        // 2. Tracing (creates spans for distributed tracing)
+        // 3. Logging (to log all requests)
+        // 4. Idempotency (early, to prevent duplicate processing)
+        // 5. Validation (before processing)
+        // 6. Unit of Work (commits after successful handling)
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(TracingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(IdempotencyBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));

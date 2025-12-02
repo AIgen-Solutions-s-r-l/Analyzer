@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using AnalyzerCore.Domain.Abstractions;
 using AnalyzerCore.Domain.Errors;
@@ -5,6 +6,7 @@ using AnalyzerCore.Domain.Models;
 using AnalyzerCore.Domain.Services;
 using AnalyzerCore.Domain.ValueObjects;
 using AnalyzerCore.Infrastructure.Configuration;
+using AnalyzerCore.Infrastructure.Telemetry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nethereum.ABI.FunctionEncoding.Attributes;
@@ -35,8 +37,21 @@ public class BlockchainService : IBlockchainService
 
     public async Task<BigInteger> GetCurrentBlockNumberAsync(CancellationToken cancellationToken = default)
     {
-        var blockNumber = await _web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
-        return blockNumber.Value;
+        using var activity = ActivitySources.Blockchain.StartActivity("GetCurrentBlockNumber");
+        activity?.SetRpcTags(method: "eth_blockNumber", endpoint: _options.GetFullRpcUrl());
+
+        try
+        {
+            var blockNumber = await _web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
+            activity?.SetBlockchainTags(chainId: _options.ChainId.ToString(), blockNumber: blockNumber.Value.ToString());
+            activity?.SetSuccess();
+            return blockNumber.Value;
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordException(ex);
+            throw;
+        }
     }
 
     public async Task<IEnumerable<BlockData>> GetBlocksAsync(
@@ -44,75 +59,125 @@ public class BlockchainService : IBlockchainService
         BigInteger toBlock,
         CancellationToken cancellationToken = default)
     {
-        var blocks = new List<BlockData>();
-        var batchSize = 10;
+        using var activity = ActivitySources.Blockchain.StartActivity("GetBlocks");
+        activity?.SetTag("blockchain.from_block", fromBlock.ToString());
+        activity?.SetTag("blockchain.to_block", toBlock.ToString());
+        activity?.SetTag("blockchain.block_count", (toBlock - fromBlock + 1).ToString());
+        activity?.SetRpcTags(method: "eth_getBlockByNumber", endpoint: _options.GetFullRpcUrl());
 
-        for (var i = fromBlock; i <= toBlock; i += batchSize)
+        try
         {
-            var tasks = new List<Task<BlockWithTransactions>>();
-            var end = BigInteger.Min(i + batchSize - 1, toBlock);
+            var blocks = new List<BlockData>();
+            var batchSize = 10;
 
-            for (var blockNumber = i; blockNumber <= end; blockNumber++)
+            for (var i = fromBlock; i <= toBlock; i += batchSize)
             {
-                var task = _web3.Eth.Blocks.GetBlockWithTransactionsByNumber
-                    .SendRequestAsync(new HexBigInteger(blockNumber));
-                tasks.Add(task);
+                var tasks = new List<Task<BlockWithTransactions>>();
+                var end = BigInteger.Min(i + batchSize - 1, toBlock);
+
+                for (var blockNumber = i; blockNumber <= end; blockNumber++)
+                {
+                    var task = _web3.Eth.Blocks.GetBlockWithTransactionsByNumber
+                        .SendRequestAsync(new HexBigInteger(blockNumber));
+                    tasks.Add(task);
+                }
+
+                var results = await Task.WhenAll(tasks);
+
+                foreach (var block in results.Where(b => b != null))
+                {
+                    blocks.Add(MapToBlockData(block));
+                }
             }
 
-            var results = await Task.WhenAll(tasks);
-
-            foreach (var block in results.Where(b => b != null))
-            {
-                blocks.Add(MapToBlockData(block));
-            }
+            activity?.SetTag("blockchain.blocks_retrieved", blocks.Count);
+            activity?.SetSuccess();
+            return blocks;
         }
-
-        return blocks;
+        catch (Exception ex)
+        {
+            activity?.RecordException(ex);
+            throw;
+        }
     }
 
     public async Task<TokenInfo> GetTokenInfoAsync(string address, CancellationToken cancellationToken = default)
     {
-        var contract = _web3.Eth.GetContract(ERC20ABI.ABI, address);
+        using var activity = ActivitySources.Blockchain.StartActivity("GetTokenInfo");
+        activity?.SetTokenTags(tokenAddress: address);
+        activity?.SetRpcTags(method: "eth_call", endpoint: _options.GetFullRpcUrl());
 
-        var nameTask = contract.GetFunction("name").CallAsync<string>();
-        var symbolTask = contract.GetFunction("symbol").CallAsync<string>();
-        var decimalsTask = contract.GetFunction("decimals").CallAsync<int>();
-        var totalSupplyTask = contract.GetFunction("totalSupply").CallAsync<BigInteger>();
-
-        await Task.WhenAll(nameTask, symbolTask, decimalsTask, totalSupplyTask);
-
-        return new TokenInfo
+        try
         {
-            Address = address.ToLowerInvariant(),
-            Name = await nameTask,
-            Symbol = await symbolTask,
-            Decimals = await decimalsTask,
-            TotalSupply = Web3.Convert.FromWei(await totalSupplyTask)
-        };
+            var contract = _web3.Eth.GetContract(ERC20ABI.ABI, address);
+
+            var nameTask = contract.GetFunction("name").CallAsync<string>();
+            var symbolTask = contract.GetFunction("symbol").CallAsync<string>();
+            var decimalsTask = contract.GetFunction("decimals").CallAsync<int>();
+            var totalSupplyTask = contract.GetFunction("totalSupply").CallAsync<BigInteger>();
+
+            await Task.WhenAll(nameTask, symbolTask, decimalsTask, totalSupplyTask);
+
+            var tokenInfo = new TokenInfo
+            {
+                Address = address.ToLowerInvariant(),
+                Name = await nameTask,
+                Symbol = await symbolTask,
+                Decimals = await decimalsTask,
+                TotalSupply = Web3.Convert.FromWei(await totalSupplyTask)
+            };
+
+            activity?.SetTokenTags(symbol: tokenInfo.Symbol, decimals: tokenInfo.Decimals);
+            activity?.SetSuccess();
+            return tokenInfo;
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordException(ex);
+            throw;
+        }
     }
 
     public async Task<PoolInfo> GetPoolInfoAsync(string address, CancellationToken cancellationToken = default)
     {
-        var contract = _web3.Eth.GetContract(UniswapV2PairABI.ABI, address);
+        using var activity = ActivitySources.Blockchain.StartActivity("GetPoolInfo");
+        activity?.SetPoolTags(poolAddress: address);
+        activity?.SetRpcTags(method: "eth_call", endpoint: _options.GetFullRpcUrl());
 
-        var token0Task = contract.GetFunction("token0").CallAsync<string>();
-        var token1Task = contract.GetFunction("token1").CallAsync<string>();
-        var factoryTask = contract.GetFunction("factory").CallAsync<string>();
-        var reservesTask = contract.GetFunction("getReserves").CallAsync<Reserves>();
-
-        await Task.WhenAll(token0Task, token1Task, factoryTask, reservesTask);
-        var reserves = await reservesTask;
-
-        return new PoolInfo
+        try
         {
-            Address = address.ToLowerInvariant(),
-            Token0 = (await token0Task)?.ToLowerInvariant() ?? string.Empty,
-            Token1 = (await token1Task)?.ToLowerInvariant() ?? string.Empty,
-            Factory = (await factoryTask)?.ToLowerInvariant() ?? string.Empty,
-            Reserve0 = Web3.Convert.FromWei(reserves.Reserve0),
-            Reserve1 = Web3.Convert.FromWei(reserves.Reserve1),
-            Type = PoolType.UniswapV2
-        };
+            var contract = _web3.Eth.GetContract(UniswapV2PairABI.ABI, address);
+
+            var token0Task = contract.GetFunction("token0").CallAsync<string>();
+            var token1Task = contract.GetFunction("token1").CallAsync<string>();
+            var factoryTask = contract.GetFunction("factory").CallAsync<string>();
+            var reservesTask = contract.GetFunction("getReserves").CallAsync<Reserves>();
+
+            await Task.WhenAll(token0Task, token1Task, factoryTask, reservesTask);
+            var reserves = await reservesTask;
+
+            var poolInfo = new PoolInfo
+            {
+                Address = address.ToLowerInvariant(),
+                Token0 = (await token0Task)?.ToLowerInvariant() ?? string.Empty,
+                Token1 = (await token1Task)?.ToLowerInvariant() ?? string.Empty,
+                Factory = (await factoryTask)?.ToLowerInvariant() ?? string.Empty,
+                Reserve0 = Web3.Convert.FromWei(reserves.Reserve0),
+                Reserve1 = Web3.Convert.FromWei(reserves.Reserve1),
+                Type = PoolType.UniswapV2
+            };
+
+            activity?.SetPoolTags(token0: poolInfo.Token0, token1: poolInfo.Token1);
+            activity?.SetTag("pool.reserve0", poolInfo.Reserve0.ToString("F6"));
+            activity?.SetTag("pool.reserve1", poolInfo.Reserve1.ToString("F6"));
+            activity?.SetSuccess();
+            return poolInfo;
+        }
+        catch (Exception ex)
+        {
+            activity?.RecordException(ex);
+            throw;
+        }
     }
 
     public async Task<(decimal Reserve0, decimal Reserve1)> GetPoolReservesAsync(

@@ -44,4 +44,52 @@ public sealed class TelemetryOptions
     /// Whether to enable ASP.NET Core instrumentation.
     /// </summary>
     public bool AspNetCoreInstrumentation { get; set; } = true;
+
+    // ============ Tracing Configuration ============
+
+    /// <summary>
+    /// Whether distributed tracing is enabled.
+    /// </summary>
+    public bool TracingEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Whether to export traces to Jaeger.
+    /// </summary>
+    public bool JaegerEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Jaeger agent host for UDP transport.
+    /// </summary>
+    public string JaegerAgentHost { get; set; } = "localhost";
+
+    /// <summary>
+    /// Jaeger agent port for UDP transport.
+    /// </summary>
+    public int JaegerAgentPort { get; set; } = 6831;
+
+    /// <summary>
+    /// Sampling ratio for traces (0.0 to 1.0).
+    /// 1.0 = sample all traces, 0.1 = sample 10% of traces.
+    /// </summary>
+    public double TracingSamplingRatio { get; set; } = 1.0;
+
+    /// <summary>
+    /// Whether to enable Entity Framework Core instrumentation for database tracing.
+    /// </summary>
+    public bool EntityFrameworkInstrumentation { get; set; } = true;
+
+    /// <summary>
+    /// Whether to set the DB statement as span name for EF Core instrumentation.
+    /// </summary>
+    public bool EfCoreSetDbStatementForText { get; set; } = false;
+
+    /// <summary>
+    /// Whether to enrich spans with exception details.
+    /// </summary>
+    public bool EnrichWithException { get; set; } = true;
+
+    /// <summary>
+    /// Whether to record exception stack traces in spans.
+    /// </summary>
+    public bool RecordException { get; set; } = true;
 }

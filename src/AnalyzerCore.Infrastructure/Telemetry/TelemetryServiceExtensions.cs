@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace AnalyzerCore.Infrastructure.Telemetry;
 
@@ -67,6 +68,72 @@ public static class TelemetryServiceExtensions
                 {
                     metrics.AddPrometheusExporter();
                 }
+            })
+            .WithTracing(tracing =>
+            {
+                if (!options.TracingEnabled)
+                {
+                    return;
+                }
+
+                // Configure sampling
+                tracing.SetSampler(new TraceIdRatioBasedSampler(options.TracingSamplingRatio));
+
+                // Add ASP.NET Core instrumentation
+                if (options.AspNetCoreInstrumentation)
+                {
+                    tracing.AddAspNetCoreInstrumentation(opts =>
+                    {
+                        opts.RecordException = options.RecordException;
+                        opts.EnrichWithException = options.EnrichWithException
+                            ? (activity, exception) =>
+                            {
+                                activity?.SetTag("exception.type", exception.GetType().FullName);
+                                activity?.SetTag("exception.message", exception.Message);
+                            }
+                            : null;
+                    });
+                }
+
+                // Add HTTP client instrumentation
+                if (options.HttpClientInstrumentation)
+                {
+                    tracing.AddHttpClientInstrumentation(opts =>
+                    {
+                        opts.RecordException = options.RecordException;
+                    });
+                }
+
+                // Add Entity Framework Core instrumentation
+                if (options.EntityFrameworkInstrumentation)
+                {
+                    tracing.AddEntityFrameworkCoreInstrumentation(opts =>
+                    {
+                        opts.SetDbStatementForText = options.EfCoreSetDbStatementForText;
+                    });
+                }
+
+                // Add custom activity sources
+                tracing.AddSource(ApplicationMetrics.MeterName);
+                foreach (var sourceName in ActivitySources.AllSourceNames)
+                {
+                    tracing.AddSource(sourceName);
+                }
+
+                // Export to Jaeger
+                if (options.JaegerEnabled)
+                {
+                    tracing.AddJaegerExporter(jaeger =>
+                    {
+                        jaeger.AgentHost = options.JaegerAgentHost;
+                        jaeger.AgentPort = options.JaegerAgentPort;
+                    });
+                }
+
+                // Also export to console in development for debugging
+                #if DEBUG
+                tracing.AddConsoleExporter();
+                #endif
             });
 
         return services;
